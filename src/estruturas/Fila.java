@@ -40,7 +40,7 @@ public class Fila<T> {
 
     public T espiar() {
         if (tamanho == 0) {
-            System.out.println("estruturas.Fila vazia.");
+            System.out.println("Fila vazia.");
             return null;
         }
 
@@ -49,7 +49,7 @@ public class Fila<T> {
 
     public T desenfileirar() {
         if (inicio == null) {
-            System.out.println("estruturas.Fila vazia");
+            System.out.println("Fila vazia");
             return null;
         }
 

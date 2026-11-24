@@ -21,7 +21,7 @@ public class Pilha<T>{
     public T espiar() {
 
         if (tamanho == 0){
-            System.out.println("estruturas.Pilha vazia.");
+            System.out.println("Pilha vazia.");
             return null;
         }
 
@@ -29,7 +29,7 @@ public class Pilha<T>{
     }
     public T desempilhar(){
         if(tamanho == 0){
-            System.out.println("estruturas.Pilha vazia");
+            System.out.println("Pilha vazia");
             return null;
         }
 
