@@ -1,3 +1,5 @@
+package estruturas;
+
 public class ListaDuplaCircular<T> {
 
     private No<T> inicio;

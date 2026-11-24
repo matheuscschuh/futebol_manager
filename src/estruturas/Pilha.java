@@ -1,3 +1,5 @@
+package estruturas;
+
 public class Pilha<T>{
 
     private No<T> inicio;
@@ -16,18 +18,18 @@ public class Pilha<T>{
 
         tamanho++;
     }
-    public No<T> espiar() {
+    public T espiar() {
 
         if (tamanho == 0){
-            System.out.println("Pilha vazia.");
+            System.out.println("estruturas.Pilha vazia.");
             return null;
         }
 
-        return inicio;
+        return inicio.dado;
     }
-    public No<T> desempilhar(){
+    public T desempilhar(){
         if(tamanho == 0){
-            System.out.println("Pilha vazia");
+            System.out.println("estruturas.Pilha vazia");
             return null;
         }
 
@@ -35,7 +37,7 @@ public class Pilha<T>{
         inicio = inicio.proximo;
         tamanho--;
         removido.proximo = null;
-        return removido;
+        return removido.dado;
 
 
     }
@@ -52,7 +54,7 @@ public class Pilha<T>{
         No<T> atual = inicio;
 
         while (atual != null) {
-            System.out.print(atual.elemento + " ");
+            System.out.print(atual.dado + " ");
             atual = atual.proximo;
         }
         System.out.println();

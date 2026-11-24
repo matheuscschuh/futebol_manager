@@ -1,17 +1,31 @@
+package estruturas;
+
 public class Fila<T> {
 
     private No<T> inicio;
     private No<T> fim;
     private int tamanho;
+    private int capacidade;
 
-    public Fila() {
+    public Fila(int capacidade) {
         this.inicio = null;
         this.fim = null;
         this.tamanho = 0;
+
+        if (capacidade <= 0) {
+            this.capacidade = 10;
+        } else {
+            this.capacidade = capacidade;
+        }
+
     }
 
     public void enfileirar(T e) {
         No<T> novoNo = new No<>(e);
+
+        if (tamanho == capacidade){
+            desenfileirar();
+        }
 
         if (inicio == null) {
             inicio = novoNo;
@@ -26,16 +40,16 @@ public class Fila<T> {
 
     public T espiar() {
         if (tamanho == 0) {
-            System.out.println("Fila vazia.");
+            System.out.println("estruturas.Fila vazia.");
             return null;
         }
 
-        return inicio.elemento;
+        return inicio.dado;
     }
 
-    public No<T> desenfileirar() {
+    public T desenfileirar() {
         if (inicio == null) {
-            System.out.println("Fila vazia");
+            System.out.println("estruturas.Fila vazia");
             return null;
         }
 
@@ -50,16 +64,7 @@ public class Fila<T> {
 
         removido.proximo = null;
 
-        return removido;
-    }
-
-    public No<T> primeiro() {
-        if (inicio == null) {
-            System.out.println("Fila vazia");
-            return null;
-        }
-
-        return inicio;
+        return removido.dado;
     }
 
     public boolean estaVazia() {
@@ -79,7 +84,7 @@ public class Fila<T> {
         No<T> atual = inicio;
 
         while (atual != null) {
-            System.out.print(atual.elemento + " ");
+            System.out.print(atual.dado + " ");
             atual = atual.proximo;
         }
 
