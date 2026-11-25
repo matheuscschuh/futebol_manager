@@ -65,4 +65,54 @@ public class Jogador {
         saldo = saldoInicial;
         posicaoAtual = inicio;
     }
+
+    public void receber(double valor) {
+        saldo += valor;
+    }
+    public void debitar(double valor) {
+        saldo -= valor;
+    }
+    public void adicionarClube(Clube c) {
+        clubesAdquiridos.add(c);
+    }
+    public void removerClube(Clube c) {
+        clubesAdquiridos.remove(c);
+    }
+
+    public double calcularPatrimonio() {
+        double patrimonioTotal = saldo;
+        for (Clube clube : clubesAdquiridos) {
+            patrimonioTotal += clube.getValorAquisicao();
+        }
+
+        return patrimonioTotal;
+    }
+
+    public void completarTemporada() {
+        temporadasCompletas += 1;
+    }
+    public void adicionarVoltaPendente() {
+        voltasPendentes += 1;
+    }
+    public void quitarVoltaPendente() {
+        if (voltasPendentes == 0) {
+            return;
+        }
+        voltasPendentes -= 1;
+    }
+    public void registrarTaxaRecebida(double valor) {
+        totalRecebidoTaxas += valor;
+    }
+    public void eliminar() {
+        eliminado = true;
+        saldo = 0;
+        clubesAdquiridos.clear();
+    }
+
+    public void avancarUmaCasa() {
+        posicaoAtual = posicaoAtual.getProximo();
+    }
+    public void recuarUmaCasa() {
+        posicaoAtual = posicaoAtual.getAnterior();
+    }
 }
