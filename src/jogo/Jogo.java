@@ -4,9 +4,12 @@ import modelo.Clube;
 import modelo.Jogador;
 import modelo.TipoCasa;
 
+import java.util.ArrayList;
+
 public class Jogo {
 
-    private double patrocinio = 100000;   // depois vem das configurações
+    private double patrocinio = 100000;
+    private ArrayList<Jogador> ordemEliminacao = new ArrayList<>();
 
     public void moverParaFrente(Jogador jogador, int passos) {
         for (int i = 0; i < passos; i++) {
@@ -73,8 +76,8 @@ public class Jogo {
             double saldoVisitanteAntes = jogador.getSaldo();
             double saldoDonoAntes = dono.getSaldo();
 
-            cobrar(jogador, dono, taxa);
-            dono.registrarTaxaRecebida(taxa);
+            double pago = cobrar(jogador, dono, taxa);
+            dono.registrarTaxaRecebida(pago);
 
 
             System.out.println(">> " + jogador.getNome() + " parou no " + clube.getNome() + ", que pertence a " + dono.getNome());
@@ -90,11 +93,88 @@ public class Jogo {
 
     }
 
-
-    private void cobrar(Jogador devedor, Jogador credor, double valor) {
-        devedor.debitar(valor);
-        if (credor != null) {
-            credor.receber(valor);
+    public void pararEmFolhaSalarial(Jogador jogador) {
+        if (!jogador.getClubesAdquiridos().isEmpty()) {
+            double saldoAntes = jogador.getSaldo();
+            double total = 0;
+            for (Clube time : jogador.getClubesAdquiridos()) {
+                total += time.getValorAquisicao() * 0.01;
+            }
+            cobrar(jogador, null, total);
+            System.out.println(">> " + jogador.getNome() + " pagou R$ " + total + " de folha salarial ("
+                    + jogador.getClubesAdquiridos().size() + " clubes) | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+        } else {
+            System.out.println(">> " + jogador.getNome() + " não possui clubes e não paga folha salarial.");
         }
+    }
+    public void pararEmPremiacao(Jogador jogador) {
+        if (!jogador.getClubesAdquiridos().isEmpty()) {
+            double saldoAntes = jogador.getSaldo();
+            double total = 0;
+            for (Clube time : jogador.getClubesAdquiridos()) {
+                total += time.getValorAquisicao() * 0.02;
+            }
+            jogador.receber(total);
+            System.out.println(">> " + jogador.getNome() + " recebeu R$ " + total + " de premiação ("
+                    + jogador.getClubesAdquiridos().size() + " clubes) | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+        } else {
+            System.out.println(">> " + jogador.getNome() + " não possui clubes e não recebe premiação.");
+        }
+    }
+
+    private double cobrar(Jogador devedor, Jogador credor, double valor) {
+
+        // 2) Venda forçada, se precisar
+        if (devedor.getSaldo() < valor && !devedor.getClubesAdquiridos().isEmpty()) {
+            System.out.println("   !! " + devedor.getNome() + " não tem saldo para pagar R$ " + valor
+                    + " (saldo: R$ " + devedor.getSaldo() + "). Venda forçada:");
+
+            while (devedor.getSaldo() < valor && !devedor.getClubesAdquiridos().isEmpty()) {
+                Clube maisBarato = encontrarClubeMaisBarato(devedor);
+                double valorVenda = maisBarato.getValorAquisicao() * 0.5;
+
+                devedor.removerClube(maisBarato);
+                maisBarato.voltarAoBanco();
+                devedor.receber(valorVenda);
+
+                System.out.println("      - Vendeu " + maisBarato.getNome() + " ao banco por R$ " + valorVenda
+                        + " (50% de R$ " + maisBarato.getValorAquisicao() + "). O clube voltou ao banco.");
+            }
+        }
+
+        // 1) Saldo cobre (de primeira, ou depois da venda forçada)
+        if (devedor.getSaldo() >= valor) {
+            devedor.debitar(valor);
+            if (credor != null) {
+                credor.receber(valor);
+            }
+            return valor;
+        }
+
+        // 3) Falência: nem vendendo tudo deu
+        double tudoQueTinha = devedor.getSaldo();
+        if (credor != null) {
+            credor.receber(tudoQueTinha);
+        }
+        devedor.eliminar();
+        ordemEliminacao.add(devedor);
+
+        String quemRecebe = (credor != null) ? credor.getNome() : "o banco";
+        System.out.println("   XX " + devedor.getNome() + " FALIU! Não conseguiu pagar R$ " + valor
+                + ". " + quemRecebe + " recebeu tudo o que restava (R$ " + tudoQueTinha + ").");
+        System.out.println("   XX " + devedor.getNome() + " foi eliminado. Patrimônio final: R$ 0,00. Seus clubes voltaram ao banco.");
+
+        return tudoQueTinha;
+    }
+
+    // Percorre os clubes do jogador e devolve o de menor valor original
+    private Clube encontrarClubeMaisBarato(Jogador jogador) {
+        Clube maisBarato = null;
+        for (Clube clube : jogador.getClubesAdquiridos()) {
+            if (maisBarato == null || clube.getValorAquisicao() < maisBarato.getValorAquisicao()) {
+                maisBarato = clube;
+            }
+        }
+        return maisBarato;
     }
 }
