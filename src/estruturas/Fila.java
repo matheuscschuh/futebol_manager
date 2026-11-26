@@ -84,7 +84,7 @@ public class Fila<T> {
         No<T> atual = inicio;
 
         while (atual != null) {
-            System.out.print(atual.dado + " ");
+            System.out.println(atual.dado);
             atual = atual.proximo;
         }
 

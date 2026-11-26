@@ -1,42 +1,137 @@
 package jogo;
 
-import modelo.Carta;
-import modelo.Clube;
-import modelo.Jogador;
-import modelo.TipoCasa;
+import estruturas.Fila;
+import modelo.*;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class Jogo {
 
-    private double patrocinio = 100000;
+    private double patrocinio = 100000;   // depois vem das configurações
+    private int maxRodadas = 60;          // depois vem das configurações
     private ArrayList<Jogador> ordemEliminacao = new ArrayList<>();
     private ArrayList<Jogador> jogadores;
     private Baralho baralho;
+    private Random random;
+    private Fila<EntradaHistorico> historico;   // NOVO
+    private int rodadaAtual = 1;                // NOVO
+    private String efeitoTurno = "";            // NOVO: resumo do que aconteceu no turno (vai para o histórico)
 
     // TEMPORÁRIO: quando fizermos o "Iniciar partida", o Jogo vai montar tudo sozinho
-    public Jogo(ArrayList<Jogador> jogadores, Baralho baralho) {
+    public Jogo(ArrayList<Jogador> jogadores, Baralho baralho, Random random) {
         this.jogadores = jogadores;
         this.baralho = baralho;
+        this.random = random;
+        this.historico = new Fila<>(10);
     }
+
+    // ===================== TURNO E RODADA =====================   (NOVO)
+
+    // Turno normal: os dados são sorteados
+    public void jogarTurno(Jogador jogador) {
+        jogarTurno(jogador, lancarDado(), lancarDado());
+    }
+
+    // Turno com dados escolhidos (usado também pelo modo de teste)
+    public void jogarTurno(Jogador jogador, int dado1, int dado2) {
+        double saldoAntes = jogador.getSaldo();
+        efeitoTurno = "";
+
+        System.out.println();
+        System.out.println("=== Rodada " + rodadaAtual + " | Vez de " + jogador.getNome() + " ===");
+        System.out.println("Dados: " + dado1 + " + " + dado2 + " = " + (dado1 + dado2));
+
+        moverParaFrente(jogador, dado1 + dado2);
+
+        String casaDestino = jogador.getPosicaoAtual().getDado().toString();
+        System.out.println("Casa de destino: " + casaDestino);
+
+        aplicarEfeitoDaCasa(jogador, true);
+
+        if (efeitoTurno.isEmpty()) {
+            efeitoTurno = "Nenhum efeito";
+        }
+        historico.enfileirar(new EntradaHistorico(rodadaAtual, jogador.getNome(), dado1, dado2, casaDestino, efeitoTurno));
+
+        if (!jogador.isEliminado()) {
+            System.out.println("Saldo de " + jogador.getNome() + ": R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+        }
+    }
+
+    // Uma rodada = todos os jogadores ativos jogam um turno, na ordem de cadastro
+    public void jogarRodada() {
+        for (Jogador jogador : jogadores) {
+            if (jogoTerminou()) {
+                return;
+            }
+            if (!jogador.isEliminado()) {
+                jogarTurno(jogador);
+            }
+        }
+        rodadaAtual++;
+    }
+
+    // O jogo termina ao passar do máximo de rodadas ou quando sobra um só jogador
+    public boolean jogoTerminou() {
+        return rodadaAtual > maxRodadas || contarJogadoresAtivos() <= 1;
+    }
+
+    private int contarJogadoresAtivos() {
+        int ativos = 0;
+        for (Jogador jogador : jogadores) {
+            if (!jogador.isEliminado()) {
+                ativos++;
+            }
+        }
+        return ativos;
+    }
+
+    private int lancarDado() {
+        int min = 1;
+        int max = 6;
+
+        return random.nextInt(min, max + 1);
+    }
+
+    // Junta um efeito ao resumo do turno (um turno pode ter mais de um: passou pelo Início E comprou um clube)
+    private void registrarEfeito(String efeito) {
+        if (efeitoTurno.isEmpty()) {
+            efeitoTurno = efeito;
+        } else {
+            efeitoTurno += "; " + efeito;
+        }
+    }
+
+    public void exibirHistorico() {
+        System.out.println("--- HISTÓRICO (últimas " + historico.tamanho() + " entradas) ---");
+        historico.exibir();
+    }
+
+    public int getRodadaAtual() {
+        return rodadaAtual;
+    }
+
+    // ===================== MOVIMENTO =====================
 
     public void moverParaFrente(Jogador jogador, int passos) {
         for (int i = 0; i < passos; i++) {
 
             jogador.avancarUmaCasa();
 
-
             if (jogador.getPosicaoAtual().getDado().getTipo() == TipoCasa.INICIO) {
                 if (jogador.getVoltasPendentes() > 0) {
                     jogador.quitarVoltaPendente();
                     System.out.println(">> " + jogador.getNome() + " passou pelo Início, " +
                             "mas tinha uma volta pendente (reposição de volta). Sem patrocínio.");
+                    registrarEfeito("Reposição de volta (sem patrocínio)");   // NOVO
                 } else {
                     double saldoAntes = jogador.getSaldo();
                     jogador.receber(patrocinio);
                     jogador.completarTemporada();
                     System.out.println(">> Temporada concluída! " + jogador.getNome() + " recebeu R$ " + patrocinio
                             + " de patrocínio | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+                    registrarEfeito("Patrocínio de R$ " + patrocinio);        // NOVO
                 }
             }
         }
@@ -47,12 +142,15 @@ public class Jogo {
 
             if (jogador.getPosicaoAtual().getDado().getTipo() == TipoCasa.INICIO) {
                 jogador.adicionarVoltaPendente();
+                System.out.println(">> " + jogador.getNome() + " saiu do Início andando para trás. "
+                        + "Volta pendente registrada (não receberá patrocínio na próxima passagem).");   // NOVO
             }
-
 
             jogador.recuarUmaCasa();
         }
     }
+
+    // ===================== CASAS =====================
 
     public void pararEmClube(Jogador jogador) {
         Clube clube = jogador.getPosicaoAtual().getDado().getClube();
@@ -69,16 +167,17 @@ public class Jogo {
                 System.out.println(">> " + jogador.getNome() + " comprou o " + clube.getNome()
                         + " por R$ " + clube.getValorAquisicao()
                         + " | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+                registrarEfeito("Comprou o " + clube.getNome() + " por R$ " + clube.getValorAquisicao());   // NOVO
             } else {
                 clube.registrarVisita();
                 System.out.println(">> " + jogador.getNome() + " não comprou o " + clube.getNome()
                         + ". Multiplicador agora é " + clube.getMultiplicador());
+                registrarEfeito("Não comprou o " + clube.getNome());   // NOVO
             }
 
         } else if (dono == jogador) {
-            // DELE MESMO
-            // só imprime uma mensagem
             System.out.println(">> " + clube.getNome() + " já pertence a " + jogador.getNome() + ". Nada acontece.");
+            registrarEfeito("Clube próprio");   // NOVO
 
         } else {
             double taxa = clube.calcularTaxa();
@@ -88,7 +187,6 @@ public class Jogo {
             double pago = cobrar(jogador, dono, taxa);
             dono.registrarTaxaRecebida(pago);
 
-
             System.out.println(">> " + jogador.getNome() + " parou no " + clube.getNome() + ", que pertence a " + dono.getNome());
             System.out.println("   Taxa: R$ " + clube.getTaxaMandoBase() + " × " + clube.getMultiplicador()
                     + " = R$ " + taxa);
@@ -97,9 +195,8 @@ public class Jogo {
 
             clube.registrarVisita();
             System.out.println("   Multiplicador do " + clube.getNome() + " agora é " + clube.getMultiplicador());
+            registrarEfeito("Pagou R$ " + pago + " de taxa de mando a " + dono.getNome());   // NOVO
         }
-
-
     }
 
     public void pararEmFolhaSalarial(Jogador jogador) {
@@ -112,10 +209,13 @@ public class Jogo {
             cobrar(jogador, null, total);
             System.out.println(">> " + jogador.getNome() + " pagou R$ " + total + " de folha salarial ("
                     + jogador.getClubesAdquiridos().size() + " clubes) | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+            registrarEfeito("Pagou R$ " + total + " de folha salarial");   // NOVO
         } else {
             System.out.println(">> " + jogador.getNome() + " não possui clubes e não paga folha salarial.");
+            registrarEfeito("Folha salarial: sem clubes, nada a pagar");   // NOVO
         }
     }
+
     public void pararEmPremiacao(Jogador jogador) {
         if (!jogador.getClubesAdquiridos().isEmpty()) {
             double saldoAntes = jogador.getSaldo();
@@ -126,8 +226,10 @@ public class Jogo {
             jogador.receber(total);
             System.out.println(">> " + jogador.getNome() + " recebeu R$ " + total + " de premiação ("
                     + jogador.getClubesAdquiridos().size() + " clubes) | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+            registrarEfeito("Recebeu R$ " + total + " de premiação");   // NOVO
         } else {
             System.out.println(">> " + jogador.getNome() + " não possui clubes e não recebe premiação.");
+            registrarEfeito("Premiação: sem clubes, nada a receber");   // NOVO
         }
     }
 
@@ -137,6 +239,7 @@ public class Jogo {
         Carta carta = baralho.comprar();
         System.out.println(">> " + jogador.getNome() + " tirou uma carta de Sorte/Revés:");
         System.out.println("   \"" + carta.getDescricao() + "\"");
+        registrarEfeito("Carta: " + carta.getDescricao());   // NOVO
 
         aplicarCarta(jogador, carta);
 
@@ -222,6 +325,20 @@ public class Jogo {
         }
     }
 
+    // ===================== PAGAMENTOS =====================
+
+    /**
+     * Cobrança padrão do jogo (item 2.4 do enunciado).
+     * devedor paga "valor" ao credor (credor == null significa o BANCO).
+     *
+     * 1) Se o saldo cobre, debita normalmente.
+     * 2) Se não cobre: VENDA FORÇADA. Vende clubes ao banco, do menor para o maior
+     *    valor original, por 50% do valor, até cobrir a dívida.
+     * 3) Se nem vendendo tudo cobre: FALÊNCIA. O credor recebe tudo o que o
+     *    devedor tinha, e o devedor é eliminado.
+     *
+     * Retorna quanto foi pago de verdade (na falência, pode ser menos que "valor").
+     */
     private double cobrar(Jogador devedor, Jogador credor, double valor) {
 
         // 2) Venda forçada, se precisar
@@ -240,6 +357,7 @@ public class Jogo {
                 System.out.println("      - Vendeu " + maisBarato.getNome() + " ao banco por R$ " + valorVenda
                         + " (50% de R$ " + maisBarato.getValorAquisicao() + "). O clube voltou ao banco.");
             }
+            registrarEfeito(devedor.getNome() + " fez venda forçada");   // NOVO
         }
 
         // 1) Saldo cobre (de primeira, ou depois da venda forçada)
@@ -263,6 +381,7 @@ public class Jogo {
         System.out.println("   XX " + devedor.getNome() + " FALIU! Não conseguiu pagar R$ " + valor
                 + ". " + quemRecebe + " recebeu tudo o que restava (R$ " + tudoQueTinha + ").");
         System.out.println("   XX " + devedor.getNome() + " foi eliminado. Patrimônio final: R$ 0,00. Seus clubes voltaram ao banco.");
+        registrarEfeito(devedor.getNome() + " FALIU e foi eliminado");   // NOVO
 
         return tudoQueTinha;
     }
