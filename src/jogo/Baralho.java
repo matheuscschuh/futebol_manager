@@ -75,8 +75,41 @@ public class Baralho {
     /**
      * As 12 cartas do jogo (item 2.5 do enunciado): 6 de ganho/avanço e 6 de perda/retrocesso.
      * Equipe de 1 integrante: a carta 9 ("Vá para a Série B") foi trocada por outra carta de perda.
+     * O número de casas da carta "Volte" é configurável (padrão 3), como o enunciado permite
+     * ("valores configuráveis no código").
      */
-    public static ArrayList<Carta> criarCartasPadrao() {
+    /**
+     * MODO DE TESTE: coloca uma carta escolhida no topo do baralho.
+     * Procura a carta no baralho e, se não achar, no descarte. Para tirar a carta
+     * do meio de uma pilha sem quebrar a ordem das outras, usa uma PILHA AUXILIAR.
+     */
+    public void trazerParaTopo(Carta escolhida) {
+        if (removerDaPilha(baralho, escolhida) || removerDaPilha(descarte, escolhida)) {
+            baralho.empilhar(escolhida);
+        }
+    }
+
+    private boolean removerDaPilha(Pilha<Carta> pilha, Carta alvo) {
+        Pilha<Carta> auxiliar = new Pilha<>();
+        boolean achou = false;
+
+        // desempilha tudo; a carta procurada fica de fora, as outras vão para a auxiliar
+        while (!pilha.estaVazia()) {
+            Carta carta = pilha.desempilhar();
+            if (!achou && carta == alvo) {
+                achou = true;
+            } else {
+                auxiliar.empilhar(carta);
+            }
+        }
+        // devolve as outras na mesma ordem em que estavam
+        while (!auxiliar.estaVazia()) {
+            pilha.empilhar(auxiliar.desempilhar());
+        }
+        return achou;
+    }
+
+    public static ArrayList<Carta> criarCartasPadrao(int casasVolta) {
         ArrayList<Carta> cartas = new ArrayList<>();
 
         // Ganho / avanço
@@ -91,7 +124,7 @@ public class Baralho {
         cartas.add(new Carta("Pague R$ 30.000 ao banco por multa da federação", TipoEfeito.PAGAR_BANCO, 30000));
         cartas.add(new Carta("Pague R$ 10.000 a cada um dos outros jogadores não eliminados", TipoEfeito.PAGAR_TODOS, 10000));
         cartas.add(new Carta("Pague R$ 20.000 pelo tratamento de um jogador lesionado", TipoEfeito.PAGAR_BANCO, 20000)); // substitui a carta 9
-        cartas.add(new Carta("Volte 3 casas após uma derrota inesperada", TipoEfeito.RECUAR, 3));
+        cartas.add(new Carta("Volte " + casasVolta + " casas após uma derrota inesperada", TipoEfeito.RECUAR, casasVolta));
         cartas.add(new Carta("Pague R$ 40.000 por uma contratação malsucedida", TipoEfeito.PAGAR_BANCO, 40000));
         cartas.add(new Carta("Perca 5% do seu patrimônio por problemas financeiros", TipoEfeito.PERDER_PORCENTAGEM, 5));
 
