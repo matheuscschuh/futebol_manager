@@ -1,5 +1,6 @@
 package jogo;
 
+import modelo.Carta;
 import modelo.Clube;
 import modelo.Jogador;
 import modelo.TipoCasa;
@@ -10,6 +11,14 @@ public class Jogo {
 
     private double patrocinio = 100000;
     private ArrayList<Jogador> ordemEliminacao = new ArrayList<>();
+    private ArrayList<Jogador> jogadores;
+    private Baralho baralho;
+
+    // TEMPORÁRIO: quando fizermos o "Iniciar partida", o Jogo vai montar tudo sozinho
+    public Jogo(ArrayList<Jogador> jogadores, Baralho baralho) {
+        this.jogadores = jogadores;
+        this.baralho = baralho;
+    }
 
     public void moverParaFrente(Jogador jogador, int passos) {
         for (int i = 0; i < passos; i++) {
@@ -119,6 +128,97 @@ public class Jogo {
                     + jogador.getClubesAdquiridos().size() + " clubes) | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
         } else {
             System.out.println(">> " + jogador.getNome() + " não possui clubes e não recebe premiação.");
+        }
+    }
+
+    // ===================== SORTE / REVÉS =====================
+
+    public void pararEmSorteReves(Jogador jogador) {
+        Carta carta = baralho.comprar();
+        System.out.println(">> " + jogador.getNome() + " tirou uma carta de Sorte/Revés:");
+        System.out.println("   \"" + carta.getDescricao() + "\"");
+
+        aplicarCarta(jogador, carta);
+
+        baralho.descartar(carta);   // depois de aplicada, vai para a pilha de descarte
+    }
+
+    private void aplicarCarta(Jogador jogador, Carta carta) {
+        double saldoAntes = jogador.getSaldo();
+
+        switch (carta.getEfeito()) {
+            case RECEBER_BANCO -> jogador.receber(carta.getValor());
+
+            case PAGAR_BANCO -> cobrar(jogador, null, carta.getValor());
+
+            case RECEBER_TODOS -> {
+                for (Jogador outro : jogadores) {
+                    if (outro != jogador && !outro.isEliminado()) {
+                        cobrar(outro, jogador, carta.getValor());
+                    }
+                }
+            }
+
+            case PAGAR_TODOS -> {
+                for (Jogador outro : jogadores) {
+                    if (jogador.isEliminado()) break;   // faliu no meio: para de pagar
+                    if (outro != jogador && !outro.isEliminado()) {
+                        cobrar(jogador, outro, carta.getValor());
+                    }
+                }
+            }
+
+            case PERDER_PORCENTAGEM -> {
+                double perda = jogador.calcularPatrimonio() * carta.getValor() / 100;
+                perda = Math.round(perda * 100) / 100.0;
+                cobrar(jogador, null, perda);
+            }
+
+            case AVANCAR -> {
+                moverParaFrente(jogador, (int) carta.getValor());
+                System.out.println("   " + jogador.getNome() + " avançou até " + jogador.getPosicaoAtual().getDado());
+                aplicarEfeitoDaCasa(jogador, false);
+            }
+
+            case RECUAR -> {
+                moverParaTras(jogador, (int) carta.getValor());
+                System.out.println("   " + jogador.getNome() + " voltou até " + jogador.getPosicaoAtual().getDado());
+                aplicarEfeitoDaCasa(jogador, false);
+            }
+
+            case IR_PARA_INICIO -> {
+                // anda nó a nó até chegar no Início (as regras do Início valem normalmente)
+                do {
+                    moverParaFrente(jogador, 1);
+                } while (jogador.getPosicaoAtual().getDado().getTipo() != TipoCasa.INICIO);
+            }
+        }
+
+        if (!jogador.isEliminado()) {
+            System.out.println("   Saldo de " + jogador.getNome() + ": R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+        }
+    }
+
+    // ===================== EFEITO DA CASA =====================
+
+    /**
+     * Aplica o efeito da casa onde o jogador está.
+     * podeTirarCarta = false quando o jogador chegou aqui por causa de uma carta
+     * (o enunciado diz que, nesse caso, Sorte/Revés não sorteia uma nova carta).
+     */
+    public void aplicarEfeitoDaCasa(Jogador jogador, boolean podeTirarCarta) {
+        switch (jogador.getPosicaoAtual().getDado().getTipo()) {
+            case INICIO -> { }   // o patrocínio já é tratado durante o movimento
+            case CLUBE -> pararEmClube(jogador);
+            case FOLHA_SALARIAL -> pararEmFolhaSalarial(jogador);
+            case PREMIACAO -> pararEmPremiacao(jogador);
+            case SORTE_REVES -> {
+                if (podeTirarCarta) {
+                    pararEmSorteReves(jogador);
+                } else {
+                    System.out.println("   Caiu em Sorte/Revés por causa de uma carta: nenhuma nova carta é sorteada.");
+                }
+            }
         }
     }
 
