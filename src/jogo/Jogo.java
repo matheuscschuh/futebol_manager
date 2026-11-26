@@ -1,5 +1,6 @@
 package jogo;
 
+import modelo.Clube;
 import modelo.Jogador;
 import modelo.TipoCasa;
 
@@ -38,6 +39,62 @@ public class Jogo {
 
 
             jogador.recuarUmaCasa();
+        }
+    }
+
+    public void pararEmClube(Jogador jogador) {
+        Clube clube = jogador.getPosicaoAtual().getDado().getClube();
+        Jogador dono = clube.getDono();
+
+        if (dono == null) {
+            double saldoAntes = jogador.getSaldo();
+
+            boolean querComprar = true;
+            if (jogador.getSaldo() >= clube.getValorAquisicao() && querComprar) {
+                jogador.debitar(clube.getValorAquisicao());
+                jogador.adicionarClube(clube);
+                clube.setDono(jogador);
+                System.out.println(">> " + jogador.getNome() + " comprou o " + clube.getNome()
+                        + " por R$ " + clube.getValorAquisicao()
+                        + " | Saldo: R$ " + saldoAntes + " → R$ " + jogador.getSaldo());
+            } else {
+                clube.registrarVisita();
+                System.out.println(">> " + jogador.getNome() + " não comprou o " + clube.getNome()
+                        + ". Multiplicador agora é " + clube.getMultiplicador());
+            }
+
+        } else if (dono == jogador) {
+            // DELE MESMO
+            // só imprime uma mensagem
+            System.out.println(">> " + clube.getNome() + " já pertence a " + jogador.getNome() + ". Nada acontece.");
+
+        } else {
+            double taxa = clube.calcularTaxa();
+            double saldoVisitanteAntes = jogador.getSaldo();
+            double saldoDonoAntes = dono.getSaldo();
+
+            cobrar(jogador, dono, taxa);
+            dono.registrarTaxaRecebida(taxa);
+
+
+            System.out.println(">> " + jogador.getNome() + " parou no " + clube.getNome() + ", que pertence a " + dono.getNome());
+            System.out.println("   Taxa: R$ " + clube.getTaxaMandoBase() + " × " + clube.getMultiplicador()
+                    + " = R$ " + taxa);
+            System.out.println("   " + jogador.getNome() + ": R$ " + saldoVisitanteAntes + " → R$ " + jogador.getSaldo());
+            System.out.println("   " + dono.getNome() + ": R$ " + saldoDonoAntes + " → R$ " + dono.getSaldo());
+
+            clube.registrarVisita();
+            System.out.println("   Multiplicador do " + clube.getNome() + " agora é " + clube.getMultiplicador());
+        }
+
+
+    }
+
+
+    private void cobrar(Jogador devedor, Jogador credor, double valor) {
+        devedor.debitar(valor);
+        if (credor != null) {
+            credor.receber(valor);
         }
     }
 }
